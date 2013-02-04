@@ -1,0 +1,7 @@
+project1/*.o
+project1/*.o.cmd
+project1/*.ko
+project1/*.ko.cmd
+project1/.tmp_versions
+
+project2/dev_access
