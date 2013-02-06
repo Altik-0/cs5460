@@ -1,0 +1,1 @@
+cmd_/home/altik0/Documents/cs5460/project2/ticket.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-3.2.0-36-generic-pae/scripts/module-common.lds --build-id  -o /home/altik0/Documents/cs5460/project2/ticket.ko /home/altik0/Documents/cs5460/project2/ticket.o /home/altik0/Documents/cs5460/project2/ticket.mod.o

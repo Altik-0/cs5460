@@ -9,6 +9,7 @@
 //------------------------------------------------------------------
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 
@@ -18,12 +19,23 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
+// Number of bytes in one MB
+#define MEGABYTE 1048576
+#define TEN_MB (MEGABYTE * 10)
+
+// We want a long long (64 bit integer) to compute time difference in microsecs
+typedef long long u64;
+
 // Reads data from dev/input/mouse0 and prints the data to the screen
 int read_mouse0();
 
-// Times how long it takes to read 10MB from dev/urandom then write
+// Times how long it takes to read TEN_MB from dev/urandom then write
 // that byte to dev/null
 int urandomToNull();
+
+// Grabs a ticket from /dev/ticket (a custom kernel module) 10 times, sleeping
+// for one second between reads
+int getTickets();
 
 int main(int argc, char** argv)
 {
@@ -58,6 +70,7 @@ int main(int argc, char** argv)
         errCheck = urandomToNull();
         break;
     case 2:
+        errCheck = getTickets();
         break;
     // If we have any other value, it's outside of the valid range, so we error out
     default:
@@ -115,8 +128,6 @@ int read_mouse0()
     errCheck = close(mouseDscr);
     if (errCheck == -1)
     {
-        // um, shit? Closing the file went bad? What do?
-        // Well, at least we'll print out the error message...
         if (strerror_r(errno, errMsg, 1024) == 0)
             printf("%s\n", errMsg);
         return 1;
@@ -133,7 +144,16 @@ int urandomToNull()
     char errMsg[1024];
 
     // Buffer to store bytes read from dev/urandom
-    char buf[10485760];
+    char* buf = malloc(TEN_MB);
+    if (buf == NULL)
+    {
+        // If malloc failed, that pretty much means we're out of memory.
+        // we're going to be as minimal as possible: puts instead of printf
+        // because printf may use extra memory (obviously bad), then just
+        // crash without any other work
+        puts("Out of memory!");
+        exit(1);
+    }
     int bytesRead = 0;      // Total bytes read from dev/urandom
     int bytesWritten = 0;   // Total bytes written to dev/null
 
@@ -151,7 +171,7 @@ int urandomToNull()
         return 1;
     }
 
-    int nullDscr = open("dev/null", O_WRONLY);
+    int nullDscr = open("/dev/null", O_WRONLY);
     if (nullDscr == -1)
     {
         printf("Failed to open dev/null\n");
@@ -171,9 +191,9 @@ int urandomToNull()
     }
 
     // Read/Write until we're done:
-    while (bytesRead < 10485760 && bytesWritten < 10485760)
+    while (bytesRead < TEN_MB && bytesWritten < TEN_MB)
     {
-        errCheck = read(urandomDscr, (buf + bytesRead), 10485760 - bytesRead);
+        errCheck = read(urandomDscr, (buf + bytesRead), TEN_MB - bytesRead);
         if (errCheck == -1)
         {
             printf("Read error\n");
@@ -212,8 +232,73 @@ int urandomToNull()
     }
 
     // Report results
-    printf("Time taken:\t\t%d\n", (int)(timer_stop.tv_sec - timer_start.tv_sec));
+    u64 usecStart = 1000000 * (u64)(timer_start.tv_sec) + (u64)(timer_start.tv_usec);
+    u64 usecStop = 1000000 * (u64)(timer_stop.tv_sec) + (u64)(timer_stop.tv_usec);
+    printf("Time taken:\t%lld usecs\n", usecStop - usecStart);
 
-    // Everything went well, so return 0
+    // Close ALL the buffers!
+    int retval = 0;
+    
+    errCheck = close(urandomDscr);
+    if (errCheck == -1)
+    {
+        if (strerror_r(errno, errMsg, 1024) == 0)
+            printf("%s\n", errMsg);
+        // We don't want to return, because we still need to make sure we at least
+        // _try_ to close the other buffer
+        retval = 1;
+    }
+    
+    errCheck = close(nullDscr);
+    if (errCheck == -1)
+    {
+        if (strerror_r(errno, errMsg, 1024) == 0)
+            printf("%s\n", errMsg);
+        retval = 1;
+    }
+
+    return retval;
+}
+
+int getTickets()
+{
+    // Used to check errors of system calls, and print error message
+    int errCheck;
+    char errMsg[1024];
+
+    // Open /dev/ticket0
+    int ticketDscr = open("/dev/ticket0", O_RDONLY);
+    if (ticketDscr == -1)
+    {
+        printf("Failed to open /dev/ticket0\n");
+        if (strerror_r(errno, errMsg, 1024) == 0)
+            printf("%s\n", errMsg);
+        return 1;
+    }
+
+    // Read the numbers:
+    int i;
+    for (i = 0; i < 10; i++)
+    {
+        int ticket_number;
+        errCheck = read(ticketDscr, &ticket_number, 4);
+        if (errCheck != 4)
+            printf("Read number %d failed\n", i);
+        else
+            printf("Ticket number: %d\n", ticket_number);
+
+        // wait one second before trying again
+        sleep(1);
+    }
+
+    // Close /dev/ticket0
+    errCheck = close(ticketDscr);
+    if (errCheck == -1)
+    {
+        if (strerror_r(errno, errMsg, 1024) == 0)
+            printf("%s\n", errMsg);
+        return 1;
+    }
+
     return 0;
 }

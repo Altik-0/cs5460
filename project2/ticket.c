@@ -44,10 +44,10 @@
 struct ticket_dev {
   struct mutex ticket_mutex;
   struct cdev cdev;
-  int ticket_number = 1000;
+  int ticket_number;
 };
 
-MODULE_AUTHOR("Eugene A. Shatokhin / YOUR NAME");
+MODULE_AUTHOR("Eugene A. Shatokhin / Aric Parkinson");
 MODULE_LICENSE("GPL");
 
 #define TICKET_DEVICE_NAME "ticket"
@@ -104,6 +104,9 @@ ticket_read(struct file *filp, char __user *buf, size_t count,
   struct ticket_dev *dev = (struct ticket_dev *)filp->private_data;
   ssize_t retval = 0;
 
+  // Used to check for errors during execution:
+  int errCheck;
+
   // If count != 4, we return -EINVAL. This is outside of the mutex since
   // this doesn't need to be atomic. Handling this outside of the lock
   // simplifies the cleanup
@@ -114,7 +117,7 @@ ticket_read(struct file *filp, char __user *buf, size_t count,
     return -EINTR;
 	
   // Attempt to write data as requested
-  int errCheck = copy_to_user(buf, &(dev->ticket_number), count);
+  errCheck = copy_to_user(buf, &(dev->ticket_number), count);
   if (errCheck != 0)
       retval = -EINVAL;
   else
@@ -189,6 +192,10 @@ ticket_construct_device(struct ticket_dev *dev, int minor,
     cdev_del(&dev->cdev);
     return err;
   }
+
+  // One last thing: set the ticket_number to start at 1000
+  dev->ticket_number = 1000;
+
   return 0;
 }
 

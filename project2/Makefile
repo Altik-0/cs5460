@@ -1,10 +1,9 @@
-#makefile for developing.
-CC = gcc
-FLAGS = -g -O2 -Wall -Wextra -Werror 
-LFLAGS = -s
+obj-m := ticket.o
+KDIR := /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
 
-all: dev_access.c
-	gcc -g -O2 -Wall -Wextra -Werror dev_access.c -o dev_access
-
+all:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+ 
 clean:
-	rm -f dev_access
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
