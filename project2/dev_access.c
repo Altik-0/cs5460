@@ -26,6 +26,10 @@
 // We want a long long (64 bit integer) to compute time difference in microsecs
 typedef long long u64;
 
+// Used to validate the user's input command line parameters. If valid, puts the
+// parsed parameter into option
+int validate(char* toParse, int* option);
+
 // Reads data from dev/input/mouse0 and prints the data to the screen
 int read_mouse0();
 
@@ -52,8 +56,8 @@ int main(int argc, char** argv)
     // Grab the integer. If sscanf returns anything other than 1, then the user's input
     // was invalid
     int option;
-    int errCheck = sscanf(argv[1], "%d", &option);
-    if (errCheck != 1)
+    int errCheck = validate(argv[1], &option);
+    if (errCheck != 0)
     {
         printf("Your input must be a valid integer - 0, 1, or 2\n");
         return 1;
@@ -79,6 +83,34 @@ int main(int argc, char** argv)
     }
 
     return errCheck;
+}
+
+int validate(char* toParse, int* option)
+{
+    // Validate that toParse satisfies regex: "^-?([1-9][0-9]*)|(0)$"
+    char* readItr = toParse;
+    if (*readItr == '-')
+        readItr++;
+    if (*readItr > '1' && *readItr < '9')
+    {
+        readItr++;
+        while(*readItr != '\0')
+        {
+            if (*readItr < '0' || *readItr > '9')
+                return 1;
+            readItr++;
+        }
+    }
+    else if (*readItr != '0' || *(readItr + 1) != '\0')
+        return 1;
+
+    // Now that we've verified the string satisfies our constraints, we'll pass it to sscanf
+    // to actually get the integer value. We don't need to error check sscanf, since we know
+    // it will return successfully (we validated it ourselves!)
+    sscanf(toParse, "%d", option);
+
+    // Everything succeeded, so return 0
+    return 0;
 }
 
 int read_mouse0()
