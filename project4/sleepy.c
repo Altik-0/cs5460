@@ -116,7 +116,10 @@ sleepy_write(struct file *filp, const char __user *buf, size_t count,
 
   // If the user attempted to write anything other than a standard integer, return EINVAL
   if (count != sizeof(int))
+  {
+      printk("ERROR 1\n");
       return -EINVAL;
+  }
 
   copy_from_user(__buf, buf, 4);
 
@@ -126,10 +129,16 @@ sleepy_write(struct file *filp, const char __user *buf, size_t count,
 
   // If the user passed a negative value, just return
   if (sleepCnt < 0)
+  {
+      printk("ERROR 2\n");
       return 0;
+  }
 
   if (mutex_lock_killable(&dev->sleepy_mutex))
-    return -EINTR;
+  {
+      printk("ERROR 3\n");
+      return -EINTR;
+  }
 	
   // We will save the flag as it is now, and once it changes, we'll
   // know to wake from our slumber early
@@ -138,6 +147,7 @@ sleepy_write(struct file *filp, const char __user *buf, size_t count,
   mutex_unlock(&dev->sleepy_mutex);
 
   // zzzzzz
+  printk("no error!\n");
   return wait_event_interruptible_timeout(dev->queue, dev->flag != our_flag, sleepCnt);
 }
 
