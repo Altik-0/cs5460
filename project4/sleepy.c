@@ -112,14 +112,17 @@ sleepy_write(struct file *filp, const char __user *buf, size_t count,
   struct sleepy_dev *dev = (struct sleepy_dev *)filp->private_data;
   int sleepCnt;
   int our_flag;
-	
+  char __buf[4];
+
   // If the user attempted to write anything other than a standard integer, return EINVAL
   if (count != sizeof(int))
       return -EINVAL;
 
+  copy_from_user(__buf, buf, 4);
+
   // TODO: double check this hack. I'm assuming that passing the address of an
   // integer is the appropriate way to interface with this, but I'm not sure
- sleepCnt = HZ * (*(int*)buf);
+ sleepCnt = HZ * (*(int*)__buf);
 
   // If the user passed a negative value, just return
   if (sleepCnt < 0)
